@@ -1,0 +1,11 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: psql-pvc
+  namespace: psql
+provisioner: file.csi.azure.com
+allowVolumeExpansion: true
+parameters:
+  protocol: nfs
+mountOptions:
+  - nconnect=4

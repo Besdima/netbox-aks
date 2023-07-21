@@ -1,0 +1,57 @@
+# This is a SecretProviderClass example using user-assigned identity to access your key vault
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: azure-kvname-user-msi
+  namespace: netbox
+spec:
+  provider: azure
+  secretObjects:                              # [OPTIONAL] SecretObjects defines the desired state of synced Kubernetes secret objects
+    - data:
+      - key: psql-user                            # data field to populate
+        objectName: psql-user                        # name of the mounted content to sync; this could be the object name or the object alias
+      - key: psql-pass    
+        objectName: psql-pass          
+      - key: netbox-user 
+        objectName: netbox-user
+      - key: netbox-pass
+        objectName: netbox-pass
+      - key: secret-key
+        objectName: secret-key
+      - key: auth-ldap-bind-password
+        objectName: auth-ldap-bind-password
+      secretName: netbox-credentials                   # name of the Kubernetes secret object
+      type: Opaque                                 # type of Kubernetes secret object (for example, Opaque, kubernetes.io/tls)
+  parameters:
+    usePodIdentity: "false"
+    useVMManagedIdentity: "true"          # Set to true for using managed identity
+    userAssignedIdentityID: aaa-bbb-ccc  # Set the clientID of the user-assigned managed identity to use
+    keyvaultName: KV-NetBox       # Set to the name of your key vault
+    cloudName: ""                         # [OPTIONAL for Azure] if not provided, the Azure environment defaults to AzurePublicCloud
+    objects:  |
+      array:
+        - |
+          objectName: psql-user
+          objectType: secret              # object types: secret, key, or cert
+          objectVersion: ""               # [OPTIONAL] object versions, default to latest if empty
+        - |
+          objectName: psql-pass 
+          objectType: secret
+          objectVersion: ""
+        - |
+          objectName: netbox-user 
+          objectType: secret
+          objectVersion: ""
+        - |
+          objectName: netbox-pass 
+          objectType: secret
+          objectVersion: ""
+        - |
+          objectName: secret-key 
+          objectType: secret
+          objectVersion: ""
+        - |
+          objectName: auth-ldap-bind-password 
+          objectType: secret
+          objectVersion: ""
+    tenantId: aaa-bbb-ccc               # The tenant ID of the key vault

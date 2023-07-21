@@ -1,0 +1,184 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: netbox-app
+  namespace: netbox
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: netbox-app
+  template:
+    metadata:
+      labels:
+        app: netbox-app
+    spec:
+      containers:
+      # NetBox container using the netbox-docker image: https://github.com/netbox-community/netbox-docker
+      - name: netbox
+        image: netboxcommunity/netbox:latest
+        ports:
+        - name: http
+          containerPort: 8080
+        resources:
+          limits:
+            memory: "2Gi"
+            cpu: "500m"
+        readinessProbe: # will mark the pod as ready once the initialization script is completed and will probe every 20 seconds
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 20
+        envFrom:
+          - configMapRef:
+              name: netbox-configmap
+        env:
+          - name:  SUPERUSER_NAME
+            valueFrom:
+              secretKeyRef:
+                name:  netbox-credentials
+                key:  netbox-user
+          - name:  SUPERUSER_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name:  netbox-credentials
+                key:  netbox-pass
+          - name:  DB_USER
+            valueFrom:
+              secretKeyRef:
+                name:  netbox-credentials
+                key:  psql-user
+          - name:  DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name:  netbox-credentials
+                key:  psql-pass
+          - name:  SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name:  netbox-credentials
+                key:  secret-key
+          - name:  AUTH_LDAP_BIND_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name:  netbox-credentials
+                key:  auth-ldap-bind-password
+        lifecycle: # Will run the post-startup scripts detailed in netbox-startup-configmap.yaml
+          postStart:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - >
+                  # bash /home/install-plugins.sh &&
+                  # bash /home/start-rqworker.sh &&
+                  bash /home/nginx-caching-fix.sh
+        volumeMounts:
+        - name: secrets-store01-inline
+          mountPath: "/mnt/secrets-store"
+          readOnly: true
+        # Persistent Volume paths
+        - name: netbox-media-files 
+          mountPath: /opt/netbox/netbox/media
+        - name: logging-config # Logging config
+          subPath: logging.py
+          mountPath: /etc/netbox/config/logging.py
+        # - name: netbox-plugins
+        #   mountPath: /etc/netbox/config/netbox-plugins.py
+          # subPath: netbox-plugins.py
+        # - name: install-plugins
+        #   mountPath: /home/install-plugins.sh
+        #   subPath: install-plugins.sh
+        # - name: start-rqworker
+        #   mountPath: /home/start-rqworker.sh
+        #   subPath: start-rqworker.sh
+        - name: nginx-caching-fix
+          mountPath: /home/nginx-caching-fix.sh
+          subPath: nginx-caching-fix.sh
+        # - name: sso-saml2-xml
+        #   mountPath: /opt/netbox/sso-saml2.xml
+        #   subPath: sso-saml2-metadata.xml
+      restartPolicy: Always
+      volumes:
+      # Reference to configmaps and PVs
+      - name: secrets-store01-inline
+        csi:
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: "azure-kvname-user-msi"
+      - name: netbox-media-files
+        persistentVolumeClaim: 
+          claimName: netbox-pvc
+          readOnly: false
+      # - name: ldap-config
+      #   configMap:
+      #     name: netbox-configmap
+      #     items:
+      #       - key: ldap_config.py
+      #         path: ldap_config.py
+      - name: logging-config
+        configMap:
+          name: netbox-configmap
+          items:
+            - key: logging.py
+              path: logging.py
+      # - name: netbox-plugins
+      #   configMap:
+      #     name: startup-configmap
+      #     items:
+      #     - key: "netbox-plugins.py"
+      #       path: "netbox-plugins.py"
+      # - name: install-plugins
+      #   configMap:
+      #     name: startup-configmap
+      #     items:
+      #     - key: "install-plugins.sh"
+      #       path: "install-plugins.sh"
+      # - name: start-rqworker
+      #   configMap:
+      #     name: startup-configmap
+      #     items:
+      #     - key: "start-rqworker.sh"
+      #       path: "start-rqworker.sh"
+      - name: nginx-caching-fix
+        configMap:
+          name: startup-configmap
+          items:
+          - key: "nginx-caching-fix.sh"
+            path: "nginx-caching-fix.sh"
+      # - name: sso-saml2-xml
+      #   configMap:
+      #     name: sso-saml2-xml
+      #     items:
+      #       - key: sso-saml2-metadata.xml
+      #         path: sso-saml2-metadata.xml
+
+---
+
+kind: Service
+apiVersion: v1
+metadata:
+  name: netbox-app
+  namespace: netbox
+spec:
+  selector:
+    app: netbox-app
+  ports:
+  - port: 8080
+    targetPort: 8080
+
+---
+
+
+kind: Service
+apiVersion: v1
+metadata:
+  name: netbox-app
+  namespace: ingress
+spec:
+  type: ExternalName
+  externalName: netbox-app.netbox.svc.cluster.local
+  ports:
+  - port: 8080

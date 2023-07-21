@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: netbox-psql
+  namespace: psql
+spec:
+  selector:
+    matchLabels:
+      app: netbox-psql
+  template:
+    metadata:
+      labels:
+        app: netbox-psql
+    spec:
+      containers:
+      - name: netbox-psql
+        image: postgres
+        env:
+        - name: PGDATA
+          value: "/mnt/postgresql/data"
+        - name:  POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name:  psql-credentials
+              key:  psql-user
+        - name:  POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name:  psql-credentials
+              key:  psql-pass
+        resources:
+          limits:
+            memory: "1024Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+          - name: secrets-store01-inline
+            mountPath: "/mnt/secrets-store"
+            readOnly: true
+          - name:  database
+            mountPath: "/mnt/postgresql/data"
+      volumes:
+        - name: secrets-store01-inline
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: "azure-kvname-user-msi"
+        - name: database
+          persistentVolumeClaim: 
+            claimName: psql-pvc
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: netbox-psql
+  namespace: psql
+spec:
+  selector:
+    app: netbox-psql
+  ports:
+  - port: 5432
+    targetPort: 5432

@@ -1,0 +1,19 @@
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: redis-networkpolicy-ingrees
+  namespace: redis
+spec:
+  podSelector: {}
+  ingress:
+  - from:
+    - namespaceSelector: {netbox}
+      podSelector: 
+        matchLabels:
+          app: netbox-app
+  egress:
+  - to:
+    - namespaceSelector: {netbox}
+      podSelector:
+        matchLabels:
+          app: netbox-app

@@ -1,0 +1,72 @@
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: netbox-networkpolicy-denyall
+  namespace: netbox
+spec:
+  podSelector:
+    matchLabels: {}
+  policyTypes:
+    - Ingress
+    # - Egress
+
+---
+
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: netbox-networkpolicy-inbound
+  namespace: netbox
+spec:
+  podSelector:
+    matchLabels: {}
+  policyTypes:
+    - Ingress
+  ingress:
+  - from:
+    - namespaceSelector: {}
+      podSelector: 
+        matchLabels:
+          app.kubernetes.io/name: ingress-nginx
+
+
+# ---
+
+# kind: NetworkPolicy
+# apiVersion: networking.k8s.io/v1
+# metadata:
+#   name: netbox-networkpolicy-outbound
+#   namespace: netbox
+# spec:
+#   podSelector:
+#     matchLabels: {}
+#   policyTypes:
+#     - Egress
+#   egress:
+#   - to:
+#     - namespaceSelector: {}
+#       podSelector:
+#         matchLabels:
+#           app.kubernetes.io/name: ingress-nginx
+#   - to:
+#       - namespaceSelector: {}
+#         podSelector:
+#           matchLabels:
+#             k8s-app: kube-dns
+#   - to:
+#       - namespaceSelector: {}
+#         podSelector:
+#           matchLabels:
+#             app: netbox-redis
+#   - to: # To Keyvault
+#     - ipBlock:
+#         cidr: 10.9.16.92/32
+#   - to: # To Storage Account
+#     - ipBlock:
+#         cidr: 10.9.16.4/32
+#   - to: # To PSQL
+#     - ipBlock:
+#         cidr: 10.9.17.0/24
+#   - to: # To ADDS
+#     - ipBlock:
+#         cidr: 10.32.0.4/32
