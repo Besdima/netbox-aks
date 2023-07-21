@@ -1,7 +1,7 @@
 # Netbox-aks
 
 Two versions to run internally with a private cluster.<br />  
-With the smallest adjustments can be run on any Kuberneties<br />  
+With the smallest adjustments can be run on any Kubernetes<br />  
 
 # AKS-All-in-One 
 
